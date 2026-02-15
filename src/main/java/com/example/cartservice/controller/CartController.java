@@ -130,7 +130,7 @@ public class CartController {
         return ResponseEntity.ok(cartService.checkout(userId, tableName));
     }
     @GetMapping
-    public ResponseEntity<ItemsResponse> getItemsForOrder(
+    public ResponseEntity<CartInfoDTO> getItemsForOrder(
             Authentication authentication,
             @RequestHeader(value = "X-Table-Name", required = false) String tableName,
             @RequestHeader(value = "X-User-Id", required = false) String userIdHeader)  {
@@ -138,15 +138,22 @@ public class CartController {
         Long userId = resolveUserId(authentication, userIdHeader);
         CartResponse cart = cartService.getCart(userId, tableName);
 
-        List<ItemForOrder> items = cart.getItems().stream()
-                .map(i -> ItemForOrder.builder()
+        List<CartInfoDTO.CartItemInfo> items = cart.getItems().stream()
+                .map(i -> CartInfoDTO.CartItemInfo.builder()
                         .itemId(i.getMenuItemId())
                         .itemName(i.getItemName())
                         .quantity(i.getQuantity())
                         .unitPrice(i.getPrice())
+                        .totalPrice(i.getSubtotal())
                         .build())
                 .collect(Collectors.toList());
 
-        return ResponseEntity.ok(new ItemsResponse(items));
+        CartInfoDTO response = CartInfoDTO.builder()
+                .userId(userId)
+                .items(items)
+                .totalAmount(cart.getTotalAmount())
+                .build();
+
+        return ResponseEntity.ok(response);
     }
 }
