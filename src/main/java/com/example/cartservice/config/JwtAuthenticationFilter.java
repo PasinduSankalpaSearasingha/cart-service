@@ -1,11 +1,10 @@
 package com.example.cartservice.config;
 
-import com.example.cartservice.util.JwtUtil;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
-import org.springframework.beans.factory.annotation.Autowired;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.lang.NonNull;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
@@ -18,57 +17,46 @@ import java.io.IOException;
 import java.util.Collections;
 import java.util.List;
 
+/**
+ * Filter that relies on identity headers injected by the API Gateway.
+ * This avoids redundant JWT validation in this microservice.
+ */
+@Slf4j
 @Component
 public class JwtAuthenticationFilter extends OncePerRequestFilter {
-    
-    @Autowired
-    private JwtUtil jwtUtil;
 
     @Override
     protected void doFilterInternal(
             @NonNull HttpServletRequest request,
             @NonNull HttpServletResponse response,
             @NonNull FilterChain filterChain) throws ServletException, IOException {
-        
-        final String authHeader = request.getHeader("Authorization");
-        
-        if (authHeader == null || !authHeader.startsWith("Bearer ")) {
-            filterChain.doFilter(request, response);
-            return;
-        }
-        
-        String token = authHeader.substring(7);
-        
-        try {
-            if (jwtUtil.isTokenValid(token)) {
-                Long userId = jwtUtil.extractUserId(token);
-                Integer role = jwtUtil.extractRole(token);
 
-                // Convert role to authority (1=CUSTOMER, 2=ADMIN, 3=KITCHEN)
-                String roleName = getRoleName(role);
+        // Extract identity headers injected by the Gateway
+        String userIdStr = request.getHeader("X-User-Id");
+        String roleName = request.getHeader("X-Role");
+
+        if (userIdStr != null && !userIdStr.isEmpty()) {
+            try {
+                Long userId = Long.parseLong(userIdStr);
+
+                // If role is missing, default to USER
+                String finalRole = (roleName != null && !roleName.isEmpty()) ? roleName : "USER";
+
                 List<SimpleGrantedAuthority> authorities = Collections.singletonList(
-                        new SimpleGrantedAuthority("ROLE_" + roleName));
+                        new SimpleGrantedAuthority("ROLE_" + finalRole));
 
-                UsernamePasswordAuthenticationToken authToken =
-                        new UsernamePasswordAuthenticationToken(userId, role, authorities);
+                UsernamePasswordAuthenticationToken authToken = new UsernamePasswordAuthenticationToken(userId, null,
+                        authorities);
                 authToken.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
-                
-                SecurityContextHolder.getContext().setAuthentication(authToken);
-            }
-        } catch (Exception e) {
-            logger.error("JWT validation failed: " + e.getMessage());
-        }
-        
-        filterChain.doFilter(request, response);
-    }
 
-    private String getRoleName(Integer role) {
-        if (role == null) return "USER";
-        return switch (role) {
-            case 1 -> "CUSTOMER";
-            case 2 -> "ADMIN";
-            case 3 -> "KITCHEN";
-            default -> "USER";
-        };
+                SecurityContextHolder.getContext().setAuthentication(authToken);
+                log.debug("Authenticated user {} with role {} via headers", userId, finalRole);
+
+            } catch (NumberFormatException e) {
+                log.warn("Invalid X-User-Id header format: {}", userIdStr);
+            }
+        }
+
+        filterChain.doFilter(request, response);
     }
 }

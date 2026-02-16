@@ -1,0 +1,46 @@
+server:
+  port: ${PORT:8088}
+  tomcat:
+    accesslog:
+      enabled: ${TOMCAT_ACCESSLOG_ENABLED:true}
+      pattern: "%h %l %u %t \"%r\" %s %b"
+
+spring:
+  application:
+    name: cart-service
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+  output:
+    ansi:
+      enabled: ALWAYS
+
+cart:
+  store:
+    type: ${CART_STORE_TYPE:inmemory}
+
+order:
+  service:
+    url: ${ORDER_SERVICE_URL:https://gateway-app.mangofield-91faac5e.southeastasia.azurecontainerapps.io/api/orders}
+
+logging:
+  level:
+    org.springframework.web: ${LOG_LEVEL_WEB:DEBUG}
+    com.example.cartservice: ${LOG_LEVEL_SERVICE:DEBUG}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,prometheus
+  endpoint:
+    health:
+      show-details: always
+      probes:
+        enabled: true
+  health:
+    livenessstate:
+      enabled: true
+    readinessstate:
+      enabled: true

@@ -6,12 +6,19 @@ import com.example.cartservice.dto.CheckoutResponse;
 import com.example.cartservice.dto.UpdateCartItemRequest;
 
 public interface CartService {
-    CartResponse openCart(Long userId, String tableName);
-    CartResponse getCart(Long userId, String tableName);
+    CartResponse openCart(Long userId, Integer tableId);
+
+    CartResponse getCart(Long userId, Integer tableId);
+
     CartResponse getOrderByOrderId(String orderId);
-    CartResponse addToCart(Long userId, String tableName, AddToCartRequest request);
-    CartResponse updateCartItem(Long userId, String tableName, Long itemId, UpdateCartItemRequest request);
-    CartResponse removeFromCart(Long userId, String tableName, Long itemId);
-    CartResponse clearCart(Long userId, String tableName);
-    CheckoutResponse checkout(Long userId, String tableName);
+
+    CartResponse addToCart(Long userId, Integer tableId, AddToCartRequest request);
+
+    CartResponse updateCartItem(Long userId, Integer tableId, Long itemId, UpdateCartItemRequest request);
+
+    CartResponse removeFromCart(Long userId, Integer tableId, Long itemId);
+
+    CartResponse clearCart(Long userId, Integer tableId);
+
+    CheckoutResponse checkout(Long userId, Integer tableId, String authHeader);
 }

@@ -17,7 +17,7 @@ import java.util.List;
 public class RedisCart {
     private String orderId;
     private Long userId;
-    private String tableName; // from gateway
+    private Integer tableId; // from gateway
     @Builder.Default
     private List<CartItem> items = new ArrayList<>();
     private BigDecimal totalAmount = BigDecimal.ZERO;
@@ -50,7 +50,9 @@ public class RedisCart {
                     .reduce(BigDecimal.ZERO, BigDecimal::add);
         }
         updatedAt = LocalDateTime.now();
-        if (createdAt == null) createdAt = updatedAt;
-        if (items == null) items = new ArrayList<>();
+        if (createdAt == null)
+            createdAt = updatedAt;
+        if (items == null)
+            items = new ArrayList<>();
     }
 }

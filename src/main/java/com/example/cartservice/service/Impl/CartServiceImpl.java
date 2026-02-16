@@ -38,35 +38,37 @@ public class CartServiceImpl implements CartService {
         this.cartStore = cartStore;
     }
 
-    private String cartKey(Long userId, String tableName) {
-        return String.format("cart:%d:%s", userId, tableName != null ? tableName : "default");
+    private String cartKey(Long userId, Integer tableId) {
+        return String.format("cart:%d:%s", userId, tableId != null ? tableId.toString() : "default");
     }
 
     @Override
-    public CartResponse openCart(Long userId, String tableName) {
-        String key = cartKey(userId, tableName);
+    public CartResponse openCart(Long userId, Integer tableId) {
+        String key = cartKey(userId, tableId);
         RedisCart cart = cartStore.load(key);
         if (cart == null) {
             cart = RedisCart.builder()
                     .orderId("ORD-" + UUID.randomUUID())
                     .userId(userId)
-                    .tableName(tableName != null ? tableName : "default")
+                    .tableId(tableId)
                     .createdAt(LocalDateTime.now())
                     .updatedAt(LocalDateTime.now())
                     .build();
             cart.recalc();
             cartStore.save(key, cart);
         } else {
-            if (cart.getItems() == null) cart.setItems(new java.util.ArrayList<>());
+            if (cart.getItems() == null)
+                cart.setItems(new java.util.ArrayList<>());
         }
         return toCartResponse(cart);
     }
 
     @Override
-    public CartResponse getCart(Long userId, String tableName) {
-        String key = cartKey(userId, tableName);
+    public CartResponse getCart(Long userId, Integer tableId) {
+        String key = cartKey(userId, tableId);
         RedisCart cart = cartStore.load(key);
-        if (cart == null) return openCart(userId, tableName);
+        if (cart == null)
+            return openCart(userId, tableId);
         return toCartResponse(cart);
     }
 
@@ -76,18 +78,19 @@ public class CartServiceImpl implements CartService {
     }
 
     @Override
-    public CartResponse addToCart(Long userId, String tableName, AddToCartRequest request) {
-        String key = cartKey(userId, tableName);
+    public CartResponse addToCart(Long userId, Integer tableId, AddToCartRequest request) {
+        String key = cartKey(userId, tableId);
         RedisCart cart = cartStore.load(key);
         if (cart == null) {
             cart = RedisCart.builder()
                     .orderId("ORD-" + UUID.randomUUID())
                     .userId(userId)
-                    .tableName(tableName != null ? tableName : "default")
+                    .tableId(tableId)
                     .createdAt(LocalDateTime.now())
                     .build();
         } else {
-            if (cart.getItems() == null) cart.setItems(new java.util.ArrayList<>());
+            if (cart.getItems() == null)
+                cart.setItems(new java.util.ArrayList<>());
         }
 
         RedisCart.CartItem existing = cart.getItems().stream()
@@ -97,7 +100,8 @@ public class CartServiceImpl implements CartService {
 
         if (existing != null) {
             existing.setQuantity(existing.getQuantity() + request.getQuantity());
-            if (request.getNote() != null) existing.setNote(request.getNote());
+            if (request.getNote() != null)
+                existing.setNote(request.getNote());
         } else {
             RedisCart.CartItem item = RedisCart.CartItem.builder()
                     .menuItemId(request.getMenuItemId())
@@ -116,18 +120,21 @@ public class CartServiceImpl implements CartService {
     }
 
     @Override
-    public CartResponse updateCartItem(Long userId, String tableName, Long itemId, UpdateCartItemRequest request) {
-        String key = cartKey(userId, tableName);
+    public CartResponse updateCartItem(Long userId, Integer tableId, Long itemId, UpdateCartItemRequest request) {
+        String key = cartKey(userId, tableId);
         RedisCart cart = cartStore.load(key);
-        if (cart == null) throw new RuntimeException("Cart not found");
+        if (cart == null)
+            throw new RuntimeException("Cart not found");
 
         RedisCart.CartItem item = cart.getItems().stream()
                 .filter(i -> i.getMenuItemId().equals(itemId))
                 .findFirst()
                 .orElseThrow(() -> new RuntimeException("Item not found"));
 
-        if (request.getQuantity() != null) item.setQuantity(request.getQuantity());
-        if (request.getNote() != null) item.setNote(request.getNote());
+        if (request.getQuantity() != null)
+            item.setQuantity(request.getQuantity());
+        if (request.getNote() != null)
+            item.setNote(request.getNote());
 
         cart.recalc();
         cartStore.save(key, cart);
@@ -135,10 +142,11 @@ public class CartServiceImpl implements CartService {
     }
 
     @Override
-    public CartResponse removeFromCart(Long userId, String tableName, Long itemId) {
-        String key = cartKey(userId, tableName);
+    public CartResponse removeFromCart(Long userId, Integer tableId, Long itemId) {
+        String key = cartKey(userId, tableId);
         RedisCart cart = cartStore.load(key);
-        if (cart == null) throw new RuntimeException("Cart not found");
+        if (cart == null)
+            throw new RuntimeException("Cart not found");
 
         cart.getItems().removeIf(i -> i.getMenuItemId().equals(itemId));
         cart.recalc();
@@ -147,12 +155,12 @@ public class CartServiceImpl implements CartService {
     }
 
     @Override
-    public CartResponse clearCart(Long userId, String tableName) {
-        String key = cartKey(userId, tableName);
+    public CartResponse clearCart(Long userId, Integer tableId) {
+        String key = cartKey(userId, tableId);
         RedisCart cart = RedisCart.builder()
                 .orderId("ORD-" + UUID.randomUUID())
                 .userId(userId)
-                .tableName(tableName != null ? tableName : "default")
+                .tableId(tableId)
                 .createdAt(LocalDateTime.now())
                 .updatedAt(LocalDateTime.now())
                 .build();
@@ -162,12 +170,14 @@ public class CartServiceImpl implements CartService {
 
     @Override
     @Transactional
-    public CheckoutResponse checkout(Long userId, String tableName) {
-        String key = cartKey(userId, tableName);
+    public CheckoutResponse checkout(Long userId, Integer tableId, String authHeader) {
+        String key = cartKey(userId, tableId);
         RedisCart cart = cartStore.load(key);
-        if (cart == null || cart.getItems() == null || cart.getItems().isEmpty()) throw new RuntimeException("Cart is empty");
+        if (cart == null || cart.getItems() == null || cart.getItems().isEmpty())
+            throw new RuntimeException("Cart is empty");
 
-        // Build items array for order service: [{itemId, itemName, quantity, unitPrice}, ...]
+        // Build items array for order service: [{itemId, itemName, quantity,
+        // unitPrice}, ...]
         var itemsArray = cart.getItems().stream().map(i -> {
             var m = new java.util.HashMap<String, Object>();
             m.put("itemId", i.getMenuItemId());
@@ -179,31 +189,36 @@ public class CartServiceImpl implements CartService {
 
         HttpHeaders headers = new HttpHeaders();
         headers.setContentType(MediaType.APPLICATION_JSON);
-        // send user id and table name in headers as requested
+        // Forward the Authorization header if present
+        if (authHeader != null && !authHeader.isBlank()) {
+            headers.set("Authorization", authHeader);
+        }
+        // send user id and table id in headers as requested
         headers.set("X-User-Id", String.valueOf(userId));
-        headers.set("X-Table-Name", tableName != null ? tableName : "default");
+        headers.set("X-Table-Id", tableId != null ? tableId.toString() : "default");
 
         var payload = new java.util.HashMap<String, Object>();
         payload.put("items", itemsArray);
 
         HttpEntity<Object> entity = new HttpEntity<>(payload, headers);
 
-        // Normalize orderServiceUrl: robustly locate the real URL by finding the first "http" occurrence
+        // Normalize orderServiceUrl
         String originalUrl = orderServiceUrl != null ? orderServiceUrl : "";
         String targetUrl = originalUrl.trim();
         int httpIndex = targetUrl.toLowerCase().indexOf("http");
         if (httpIndex > 0) {
-            // strip any leading token like "post ", "post", etc. (handles "post http://" and "posthttp://")
             targetUrl = targetUrl.substring(httpIndex).trim();
         }
 
         log.debug("Original order.service.url='{}' -> normalized='{}'", originalUrl, targetUrl);
 
         if (!(targetUrl.startsWith("http://") || targetUrl.startsWith("https://"))) {
-            throw new RuntimeException("Invalid order service URL: '" + originalUrl + "'. It must contain an absolute URL starting with http:// or https://");
+            throw new RuntimeException("Invalid order service URL: '" + originalUrl
+                    + "'. It must contain an absolute URL starting with http:// or https://");
         }
 
-        log.debug("Sending order to order-service at URL='{}' userId='{}' table='{}' payloadItemsCount={}", targetUrl, userId, tableName, itemsArray.size());
+        log.debug("Sending order to order-service at URL='{}' userId='{}' table='{}' payloadItemsCount={}", targetUrl,
+                userId, tableId, itemsArray.size());
 
         ResponseEntity<String> resp = restTemplate.postForEntity(targetUrl, entity, String.class);
 

@@ -19,7 +19,7 @@ import java.util.List;
 @Configuration
 @EnableWebSecurity
 public class SecurityConfig {
-    
+
     @Autowired(required = false)
     private JwtAuthenticationFilter jwtAuthenticationFilter;
 
@@ -28,12 +28,9 @@ public class SecurityConfig {
         http
                 .cors(cors -> cors.configurationSource(corsConfigurationSource()))
                 .csrf(AbstractHttpConfigurer::disable)
-                .sessionManagement(session ->
-                        session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+                .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
-                        // Allow anonymous access to cart endpoints for local testing (X-User-Id supported)
-                        .requestMatchers("/api/cart/**").permitAll()
-                        .anyRequest().authenticated());
+                        .anyRequest().permitAll());
 
         // Add JWT filter only if available
         if (jwtAuthenticationFilter != null) {
